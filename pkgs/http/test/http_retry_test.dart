@@ -38,7 +38,9 @@ void main() {
     test('a request is cancelled', () async {
       final token = CancellationToken()..cancel();
       final client = RetryClient(
-        MockClient(expectAsync1((_) async => throw token.exception, count: 1)),
+        MockClient(
+          expectAsync1((_) async => Response('', 503), count: 1),
+        ),
         when: (_) => true,
       );
 
@@ -269,6 +271,29 @@ void main() {
   });
 
   group('handles cancellation', () {
+    test('during the request', () {
+      // Use FakeAsync to prevent the delay from ever completing
+      fakeAsync((fake) {
+        final token = CancellationToken();
+        final client = RetryClient(
+          MockClient(
+            (_) async => Future.delayed(
+              const Duration(seconds: 5),
+              () => Response('', 503),
+            ),
+          ),
+        );
+
+        expect(
+          client.get(Uri.http('example.org', ''), cancellationToken: token),
+          throwsA(isA<CancelledException>()),
+        );
+
+        fake.flushMicrotasks();
+        token.cancel();
+      });
+    });
+
     test('during the retry delay', () {
       // Use FakeAsync to prevent the delay from ever completing
       fakeAsync((fake) {

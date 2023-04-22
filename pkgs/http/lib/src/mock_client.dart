@@ -72,7 +72,7 @@ class MockClient extends BaseClient {
     CancellationToken? cancellationToken,
   }) async {
     var bodyStream = request.finalize();
-    return await _handler(request, bodyStream);
+    return await _handler(request, bodyStream).asCancellable(cancellationToken);
   }
 }
 
