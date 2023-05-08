@@ -113,7 +113,7 @@ class IOSender with Cancellable {
           );
         },
         onDone: () {
-          cancellationToken?.detach(this);
+          detach();
           responseStreamController?.close();
           responseStreamController = null;
         },
@@ -139,23 +139,24 @@ class IOSender with Cancellable {
       if (!completer.isCompleted) {
         completer.completeError(_convertException(e, request), stackTrace);
       }
-      cancellationToken?.detach(this);
+      detach();
     }
   }
 
   @override
-  void onCancel(Exception cancelException, [StackTrace? stackTrace]) {
+  void onCancel(Exception cancelException) {
+    super.onCancel(cancelException);
     if (!completer.isCompleted) {
-      completer.completeError(cancelException, stackTrace);
+      completer.completeError(cancelException, cancellationStackTrace);
     }
     // Add the cancellation exception and close the response stream if it's
     // active
     responseStreamController
-      ?..addError(cancelException, stackTrace)
+      ?..addError(cancelException, cancellationStackTrace)
       ..close();
     responseStreamController = null;
     // Abort the HTTP request if cancelled whilst sending the request
-    clientRequest?.abort(cancelException, stackTrace);
+    clientRequest?.abort(cancelException, cancellationStackTrace);
     // Detatch and destroy the socket to close the connection if cancelled
     // whilst receiving the response body
     clientResponse?.detachSocket().then((value) => value.destroy());

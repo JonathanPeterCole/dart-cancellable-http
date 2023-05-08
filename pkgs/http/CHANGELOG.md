@@ -1,3 +1,9 @@
+## 1.3.0
+**Based on version 0.13.6 of the [HTTP package](https://pub.dev/packages/http/versions/0.13.4).**
+
+* Merge latest changes to the HTTP package
+* Update `cancellation_token` to 2.0.0
+
 ## 1.2.0
 **Based on version 0.13.5 of the [HTTP package](https://pub.dev/packages/http/versions/0.13.4).**
 

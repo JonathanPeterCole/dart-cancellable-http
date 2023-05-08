@@ -54,9 +54,8 @@ class BrowserClient extends BaseClient {
     CancellationToken? cancellationToken,
   }) async {
     if (cancellationToken?.isCancelled ?? false) {
-      throw cancellationToken!.exception;
-    }
-    if (_isClosed) {
+      throw cancellationToken!.exception!;
+    } else if (_isClosed) {
       throw ClientException(
           'HTTP request failed. Client is already closed.', request.url);
     }
