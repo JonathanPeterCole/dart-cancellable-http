@@ -17,7 +17,13 @@ import 'streamed_response.dart';
 /// Create a [BrowserClient].
 ///
 /// Used from conditional imports, matches the definition in `client_stub.dart`.
-BaseClient createClient() => BrowserClient();
+BaseClient createClient() {
+  if (const bool.fromEnvironment('no_default_http_client')) {
+    throw StateError('no_default_http_client was defined but runWithClient '
+        'was not used to configure a Client implementation.');
+  }
+  return BrowserClient();
+}
 
 /// A `dart:html`-based HTTP client that runs in the browser and is backed by
 /// XMLHttpRequests.
@@ -39,12 +45,22 @@ class BrowserClient extends BaseClient {
   /// Defaults to `false`.
   bool withCredentials = false;
 
+  bool _isClosed = false;
+
   /// Sends an HTTP request and asynchronously returns the response.
   @override
   Future<StreamedResponse> send(
     BaseRequest request, {
     CancellationToken? cancellationToken,
   }) async {
+    if (cancellationToken?.isCancelled ?? false) {
+      throw cancellationToken!.exception;
+    }
+    if (_isClosed) {
+      throw ClientException(
+          'HTTP request failed. Client is already closed.', request.url);
+    }
+
     HttpRequest? xhr = HttpRequest();
     final completer = CancellableCompleter<StreamedResponse>.sync(
       cancellationToken,
@@ -103,8 +119,10 @@ class BrowserClient extends BaseClient {
   /// This terminates all active requests.
   @override
   void close() {
+    _isClosed = true;
     for (var xhr in _xhrs) {
       xhr.abort();
     }
+    _xhrs.clear();
   }
 }

@@ -11,7 +11,7 @@ import 'io_streamed_response.dart';
 /// Exception thrown when the underlying [HttpClient] throws a
 /// [SocketException].
 ///
-/// Implemenents [SocketException] to avoid breaking existing users of
+/// Implements [SocketException] to avoid breaking existing users of
 /// [IOClient] that may catch that exception.
 class _ClientSocketException extends ClientException
     implements SocketException {

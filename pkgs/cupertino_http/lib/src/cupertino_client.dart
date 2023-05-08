@@ -4,6 +4,7 @@
 
 /// A [Client] implementation based on the
 /// [Foundation URL Loading System](https://developer.apple.com/documentation/foundation/url_loading_system).
+library;
 
 import 'dart:async';
 import 'dart:io';
@@ -11,7 +12,7 @@ import 'dart:typed_data';
 
 import 'package:http/http.dart';
 
-import 'cupertino_http.dart';
+import 'cupertino_api.dart';
 
 class _TaskTracker {
   final responseCompleter = Completer<URLResponse>();
@@ -50,11 +51,11 @@ class _TaskTracker {
 /// }
 /// ```
 class CupertinoClient extends BaseClient {
-  static final Map<int, _TaskTracker> _tasks = {};
+  static final Map<URLSessionTask, _TaskTracker> _tasks = {};
 
-  URLSession _urlSession;
+  URLSession? _urlSession;
 
-  CupertinoClient._(this._urlSession);
+  CupertinoClient._(URLSession urlSession) : _urlSession = urlSession;
 
   String? _findReasonPhrase(int statusCode) {
     switch (statusCode) {
@@ -143,8 +144,7 @@ class CupertinoClient extends BaseClient {
     }
   }
 
-  static _TaskTracker _tracker(URLSessionTask task) =>
-      _tasks[task.taskIdentifier]!;
+  static _TaskTracker _tracker(URLSessionTask task) => _tasks[task]!;
 
   static void _onComplete(
       URLSession session, URLSessionTask task, Error? error) {
@@ -163,7 +163,7 @@ class CupertinoClient extends BaseClient {
           StateError('task completed without an error or response'));
     }
     taskTracker.close();
-    _tasks.remove(task.taskIdentifier);
+    _tasks.remove(task);
   }
 
   static void _onData(URLSession session, URLSessionTask task, Data data) {
@@ -207,8 +207,13 @@ class CupertinoClient extends BaseClient {
   }
 
   @override
+  void close() {
+    _urlSession = null;
+  }
+
+  @override
   Future<StreamedResponse> send(BaseRequest request) async {
-    // The expected sucess case flow (without redirects) is:
+    // The expected success case flow (without redirects) is:
     // 1. send is called by BaseClient
     // 2. send starts the request with UrlSession.dataTaskWithRequest and waits
     //    on a Completer
@@ -220,6 +225,12 @@ class CupertinoClient extends BaseClient {
     //    StreamController that controls the Stream<UInt8List>
     // 7. _onComplete is called after all the data is read and closes the
     //    StreamController
+    if (_urlSession == null) {
+      throw ClientException(
+          'HTTP request failed. Client is already closed.', request.url);
+    }
+    final urlSession = _urlSession!;
+
     final stream = request.finalize();
 
     final bytes = await stream.toBytes();
@@ -232,9 +243,9 @@ class CupertinoClient extends BaseClient {
     // This will preserve Apple default headers - is that what we want?
     request.headers.forEach(urlRequest.setValueForHttpHeaderField);
 
-    final task = _urlSession.dataTaskWithRequest(urlRequest);
+    final task = urlSession.dataTaskWithRequest(urlRequest);
     final taskTracker = _TaskTracker(request);
-    _tasks[task.taskIdentifier] = taskTracker;
+    _tasks[task] = taskTracker;
     task.resume();
 
     final maxRedirects = request.followRedirects ? request.maxRedirects : 0;

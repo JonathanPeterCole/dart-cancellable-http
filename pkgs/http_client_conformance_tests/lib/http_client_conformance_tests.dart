@@ -4,6 +4,10 @@
 
 import 'package:cancellation_token_http/http.dart';
 
+import 'src/close_tests.dart';
+import 'src/compressed_response_body_tests.dart';
+import 'src/isolate_test.dart';
+import 'src/multiple_clients_tests.dart';
 import 'src/redirect_tests.dart';
 import 'src/request_body_streamed_tests.dart';
 import 'src/request_body_tests.dart';
@@ -13,6 +17,11 @@ import 'src/response_body_tests.dart';
 import 'src/response_headers_tests.dart';
 import 'src/server_errors_test.dart';
 
+export 'src/close_tests.dart' show testClose;
+export 'src/compressed_response_body_tests.dart'
+    show testCompressedResponseBody;
+export 'src/isolate_test.dart' show testIsolate;
+export 'src/multiple_clients_tests.dart' show testMultipleClients;
 export 'src/redirect_tests.dart' show testRedirect;
 export 'src/request_body_streamed_tests.dart' show testRequestBodyStreamed;
 export 'src/request_body_tests.dart' show testRequestBody;
@@ -35,20 +44,30 @@ export 'src/server_errors_test.dart' show testServerErrors;
 /// If [redirectAlwaysAllowed] is `true` then tests that require the [Client]
 /// to limit redirects will be skipped.
 ///
+/// If [canWorkInIsolates] is `false` then tests that require that the [Client]
+/// work in Isolates other than the main isolate will be skipped.
+///
 /// The tests are run against a series of HTTP servers that are started by the
 /// tests. If the tests are run in the browser, then the test servers are
 /// started in another process. Otherwise, the test servers are run in-process.
-void testAll(Client client,
+void testAll(Client Function() clientFactory,
     {bool canStreamRequestBody = true,
     bool canStreamResponseBody = true,
-    bool redirectAlwaysAllowed = false}) {
-  testRequestBody(client);
-  testRequestBodyStreamed(client, canStreamRequestBody: canStreamRequestBody);
-  testResponseBody(client, canStreamResponseBody: canStreamResponseBody);
-  testResponseBodyStreamed(client,
+    bool redirectAlwaysAllowed = false,
+    bool canWorkInIsolates = true}) {
+  testRequestBody(clientFactory());
+  testRequestBodyStreamed(clientFactory(),
+      canStreamRequestBody: canStreamRequestBody);
+  testResponseBody(clientFactory(),
       canStreamResponseBody: canStreamResponseBody);
-  testRequestHeaders(client);
-  testResponseHeaders(client);
-  testRedirect(client, redirectAlwaysAllowed: redirectAlwaysAllowed);
-  testServerErrors(client);
+  testResponseBodyStreamed(clientFactory(),
+      canStreamResponseBody: canStreamResponseBody);
+  testRequestHeaders(clientFactory());
+  testResponseHeaders(clientFactory());
+  testRedirect(clientFactory(), redirectAlwaysAllowed: redirectAlwaysAllowed);
+  testServerErrors(clientFactory());
+  testCompressedResponseBody(clientFactory());
+  testMultipleClients(clientFactory);
+  testClose(clientFactory);
+  testIsolate(clientFactory, canWorkInIsolates: canWorkInIsolates);
 }

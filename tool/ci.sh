@@ -1,5 +1,5 @@
 #!/bin/bash
-# Created with package:mono_repo v6.4.0
+# Created with package:mono_repo v6.5.3
 
 # Support built in commands on windows out of the box.
 # When it is a flutter repo (check the pubspec.yaml for "sdk: flutter")
@@ -70,6 +70,10 @@ for PKG in ${PKGS}; do
       analyze)
         echo 'dart analyze --fatal-infos'
         dart analyze --fatal-infos || EXIT_CODE=$?
+        ;;
+      command)
+        echo 'dart run --define=no_default_http_client=true test/no_default_http_client_test.dart'
+        dart run --define=no_default_http_client=true test/no_default_http_client_test.dart || EXIT_CODE=$?
         ;;
       format)
         echo 'dart format --output=none --set-exit-if-changed .'

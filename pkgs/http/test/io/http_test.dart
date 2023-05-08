@@ -3,6 +3,8 @@
 // BSD-style license that can be found in the LICENSE file.
 
 @TestOn('vm')
+library;
+
 import 'package:cancellation_token/cancellation_token.dart';
 import 'package:cancellation_token_http/http.dart' as http;
 import 'package:test/test.dart';
@@ -34,8 +36,7 @@ void main() {
 
     test('head runWithClient', () {
       expect(
-          () => http.runWithClient(
-              () => http.head(serverUrl), () => TestClient()),
+          () => http.runWithClient(() => http.head(serverUrl), TestClient.new),
           throwsUnimplementedError);
     });
 
@@ -62,8 +63,7 @@ void main() {
 
     test('get runWithClient', () {
       expect(
-          () =>
-              http.runWithClient(() => http.get(serverUrl), () => TestClient()),
+          () => http.runWithClient(() => http.get(serverUrl), TestClient.new),
           throwsUnimplementedError);
     });
 
@@ -295,7 +295,7 @@ void main() {
     test('post runWithClient', () {
       expect(
           () => http.runWithClient(
-              () => http.post(serverUrl, body: 'testing'), () => TestClient()),
+              () => http.post(serverUrl, body: 'testing'), TestClient.new),
           throwsUnimplementedError);
     });
 
@@ -470,7 +470,7 @@ void main() {
     test('put runWithClient', () {
       expect(
           () => http.runWithClient(
-              () => http.put(serverUrl, body: 'testing'), () => TestClient()),
+              () => http.put(serverUrl, body: 'testing'), TestClient.new),
           throwsUnimplementedError);
     });
 
@@ -667,7 +667,7 @@ void main() {
     test('patch runWithClient', () {
       expect(
           () => http.runWithClient(
-              () => http.patch(serverUrl, body: 'testing'), () => TestClient()),
+              () => http.patch(serverUrl, body: 'testing'), TestClient.new),
           throwsUnimplementedError);
     });
 
@@ -812,8 +812,7 @@ void main() {
 
     test('read runWithClient', () {
       expect(
-          () => http.runWithClient(
-              () => http.read(serverUrl), () => TestClient()),
+          () => http.runWithClient(() => http.read(serverUrl), TestClient.new),
           throwsUnimplementedError);
     });
 
@@ -883,7 +882,7 @@ void main() {
     test('readBytes runWithClient', () {
       expect(
           () => http.runWithClient(
-              () => http.readBytes(serverUrl), () => TestClient()),
+              () => http.readBytes(serverUrl), TestClient.new),
           throwsUnimplementedError);
     });
   });

@@ -3,6 +3,7 @@
 // BSD-style license that can be found in the LICENSE file.
 
 @TestOn('vm')
+library;
 
 import 'package:cancellation_token/cancellation_token.dart';
 import 'package:cancellation_token_http/http.dart' as http;

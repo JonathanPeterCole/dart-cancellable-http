@@ -3,11 +3,11 @@
 // BSD-style license that can be found in the LICENSE file.
 
 @TestOn('vm')
+library;
 
 import 'dart:io';
 
 import 'package:cancellation_token_http/http.dart' as http;
-import 'package:path/path.dart' as path;
 import 'package:test/test.dart';
 
 import '../utils.dart';
@@ -21,9 +21,9 @@ void main() {
   tearDown(() => tempDir.deleteSync(recursive: true));
 
   test('with a file from disk', () async {
-    var filePath = path.join(tempDir.path, 'test-file');
-    File(filePath).writeAsStringSync('hello');
-    var file = await http.MultipartFile.fromPath('file', filePath);
+    var fileUri = tempDir.uri.resolve('test-file');
+    File.fromUri(fileUri).writeAsStringSync('hello');
+    var file = await http.MultipartFile.fromPath('file', fileUri.toFilePath());
     var request = http.MultipartRequest('POST', dummyUrl);
     request.files.add(file);
 

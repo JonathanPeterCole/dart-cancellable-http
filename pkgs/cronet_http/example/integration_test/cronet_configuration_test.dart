@@ -2,11 +2,9 @@
 // for details. All rights reserved. Use of this source code is governed by a
 // BSD-style license that can be found in the LICENSE file.
 
-/// Tests various [CronetEngine] configurations.
-
 import 'dart:io';
 
-import 'package:cronet_http/cronet_client.dart';
+import 'package:cronet_http/cronet_http.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:test/test.dart';
 
@@ -34,7 +32,7 @@ void testCache() {
 
     test('disabled', () async {
       final engine = await CronetEngine.build(cacheMode: CacheMode.disabled);
-      final client = CronetClient(engine);
+      final client = CronetClient.fromCronetEngine(engine);
       await client.get(Uri.parse('http://localhost:${server.port}'));
       await client.get(Uri.parse('http://localhost:${server.port}'));
       expect(numRequests, 2);
@@ -43,7 +41,7 @@ void testCache() {
     test('memory', () async {
       final engine = await CronetEngine.build(
           cacheMode: CacheMode.memory, cacheMaxSize: 1024 * 1024);
-      final client = CronetClient(engine);
+      final client = CronetClient.fromCronetEngine(engine);
       await client.get(Uri.parse('http://localhost:${server.port}'));
       await client.get(Uri.parse('http://localhost:${server.port}'));
       expect(numRequests, 1);
@@ -54,7 +52,7 @@ void testCache() {
           cacheMode: CacheMode.disk,
           cacheMaxSize: 1024 * 1024,
           storagePath: (await Directory.systemTemp.createTemp()).absolute.path);
-      final client = CronetClient(engine);
+      final client = CronetClient.fromCronetEngine(engine);
       await client.get(Uri.parse('http://localhost:${server.port}'));
       await client.get(Uri.parse('http://localhost:${server.port}'));
       expect(numRequests, 1);
@@ -66,7 +64,7 @@ void testCache() {
           cacheMaxSize: 1024 * 1024,
           storagePath: (await Directory.systemTemp.createTemp()).absolute.path);
 
-      final client = CronetClient(engine);
+      final client = CronetClient.fromCronetEngine(engine);
       await client.get(Uri.parse('http://localhost:${server.port}'));
       await client.get(Uri.parse('http://localhost:${server.port}'));
       expect(numRequests, 2);
@@ -115,7 +113,7 @@ void testUserAgent() {
 
     test('userAgent', () async {
       final engine = await CronetEngine.build(userAgent: 'fake-agent');
-      await CronetClient(engine)
+      await CronetClient.fromCronetEngine(engine)
           .get(Uri.parse('http://localhost:${server.port}'));
       expect(requestHeaders['user-agent'], ['fake-agent']);
     });

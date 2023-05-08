@@ -1,10 +1,53 @@
+## 0.1.2
+
+* Require Dart 2.19
+* Fix a [reference count race with forwarded delegates](https://github.com/dart-lang/http/issues/887).
+
+## 0.1.1
+
+* Add a `URLSession.sessionDescription` field.
+
+## 0.1.0
+
+* Restructure `package:cupertino_http` to offer a single `import`.
+
+## 0.0.11
+
+* Fix a bug where the images in the example would be loaded using `dart:io`
+  `HttpClient`.
+* `CupertinoClient` throws an exception if `send` is called after `close`.
+
+## 0.0.10
+
+* Fix [Use of multiple CupertinoClients can result in cancelled requests](https://github.com/dart-lang/http/issues/826)
+
+## 0.0.9
+
+* Add a more complete implementation for `URLSessionTask`:
+  * `priority` property - hint for host prioritization.
+  * `currentRequest` property - the current request for the task (will be
+    different than `originalRequest` in the face of redirects).
+  * `originalRequest` property - the original request for the task. 
+  * `error` property - an `Error` object if the request failed.
+  * `taskDescription` property - a developer-set description of the task.
+  * `countOfBytesExpectedToSend` property - the size of the body bytes that
+    will be sent.
+  * `countOfBytesSent` property - the number of body bytes sent in the request.
+  * `prefersIncrementalDelivery` property - whether to deliver the response
+    body in one chunk (if possible) or many.
+* Upgrade to ffigen ^7.2.0 and remove unnecessary casts.
+
+## 0.0.8
+
+* Make timeout and caching policy configurable on a per-request basis.
+
 ## 0.0.7
 
 * Upgrade `ffi` dependency.
 
 ## 0.0.6
 
-* Make the number of simulateous connections allowed to the same host
+* Make the number of simultaneous connections allowed to the same host
   configurable.
 * Fixes
   [cupertino_http: Failure calling Dart_PostCObject_DL](https://github.com/dart-lang/http/issues/785).

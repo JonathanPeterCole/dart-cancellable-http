@@ -186,6 +186,10 @@ abstract class Client {
   ///
   /// It's important to close each client when it's done being used; failing to
   /// do so can cause the Dart process to hang.
+  ///
+  /// Once [close] is called, no other methods should be called. If [close] is
+  /// called while other asynchronous methods are running, the behavior is
+  /// undefined.
   void close();
 }
 
@@ -229,6 +233,35 @@ Client? get zoneClient {
 /// The [Client] returned by [clientFactory] is used by the [Client.new] factory
 /// and the convenience HTTP functions (e.g. [http.get]). If [clientFactory]
 /// returns `Client()` then the default [Client] is used.
+///
+/// When used in the context of Flutter, [runWithClient] should be called before
+/// [`WidgetsFlutterBinding.ensureInitialized`](https://api.flutter.dev/flutter/widgets/WidgetsFlutterBinding/ensureInitialized.html)
+/// because Flutter runs in whatever [Zone] was current at the time that the
+/// bindings were initialized.
+///
+/// [`runApp`](https://api.flutter.dev/flutter/widgets/runApp.html) calls
+/// [`WidgetsFlutterBinding.ensureInitialized`](https://api.flutter.dev/flutter/widgets/WidgetsFlutterBinding/ensureInitialized.html)
+/// so the easiest approach is to call that in [body]:
+/// ```
+/// void main() {
+///  var clientFactory = Client.new; // Constructs the default client.
+///  if (Platform.isAndroid) {
+///     clientFactory = MyAndroidHttpClient.new;
+///  }
+///  runWithClient(() => runApp(const MyApp()), clientFactory);
+/// }
+/// ```
+///
+/// If [runWithClient] is used and the environment defines
+/// `no_default_http_client=true` then generated binaries may be smaller e.g.
+/// ```shell
+/// $ flutter build appbundle --dart-define=no_default_http_client=true ...
+/// $ dart compile exe --define=no_default_http_client=true ...
+/// ```
+///
+/// If `no_default_http_client=true` is set then any call to the [Client]
+/// factory (i.e. `Client()`) outside of the [Zone] created by [runWithClient]
+/// will throw [StateError].
 R runWithClient<R>(R Function() body, Client Function() clientFactory,
         {ZoneSpecification? zoneSpecification}) =>
     runZoned(body,

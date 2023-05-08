@@ -2,14 +2,25 @@
 // for details. All rights reserved. Use of this source code is governed by a
 // BSD-style license that can be found in the LICENSE file.
 
+/// An Android Flutter plugin that provides access to the
+/// [Cronet](https://developer.android.com/guide/topics/connectivity/cronet/reference/org/chromium/net/package-summary)
+/// HTTP client.
+///
+/// The platform interface must be initialized before using this plugin e.g. by
+/// calling
+/// [`WidgetsFlutterBinding.ensureInitialized`](https://api.flutter.dev/flutter/widgets/WidgetsFlutterBinding/ensureInitialized.html)
+/// or
+/// [`runApp`](https://api.flutter.dev/flutter/widgets/runApp.html).
+library;
+
 import 'dart:async';
 
 import 'package:flutter/services.dart';
 import 'package:http/http.dart';
 
-import 'src/messages.dart' as messages;
+import 'messages.dart' as messages;
 
-late final _api = messages.HttpApi();
+final _api = messages.HttpApi();
 
 final Finalizer<String> _cronetEngineFinalizer = Finalizer(_api.freeEngine);
 
@@ -123,26 +134,74 @@ class CronetEngine {
 /// ```
 class CronetClient extends BaseClient {
   CronetEngine? _engine;
+  Future<CronetEngine>? _engineFuture;
+  bool _isClosed = false;
+
+  /// Indicates that [_engine] was constructed as an implementation detail for
+  /// this [CronetClient] (i.e. was not provided as a constructor argument) and
+  /// should be closed when this [CronetClient] is closed.
   final bool _ownedEngine;
 
-  CronetClient([CronetEngine? engine])
-      : _engine = engine,
-        _ownedEngine = engine == null;
+  CronetClient._(this._engineFuture, this._ownedEngine);
+
+  /// A [CronetClient] that will be initialized with a new [CronetEngine].
+  factory CronetClient.defaultCronetEngine() => CronetClient._(null, true);
+
+  /// A [CronetClient] configured with a [CronetEngine].
+  factory CronetClient.fromCronetEngine(CronetEngine engine) =>
+      CronetClient._(Future.value(engine), false);
+
+  /// A [CronetClient] configured with a [Future] containing a [CronetEngine].
+  ///
+  /// This can be useful in circumstances where a non-Future [CronetClient] is
+  /// required but you want to configure the [CronetClient] with a custom
+  /// [CronetEngine]. For example:
+  /// ```
+  /// void main() {
+  ///   Client clientFactory() {
+  ///     final engine = CronetEngine.build(
+  ///         cacheMode: CacheMode.memory, userAgent: 'Book Agent');
+  ///     return CronetClient.fromCronetEngineFuture(engine);
+  ///   }
+  ///
+  ///   runWithClient(() => runApp(const BookSearchApp()), clientFactory);
+  /// }
+  /// ```
+  factory CronetClient.fromCronetEngineFuture(Future<CronetEngine> engine) =>
+      CronetClient._(engine, false);
 
   @override
   void close() {
-    if (_ownedEngine) {
+    if (!_isClosed && _ownedEngine) {
       _engine?.close();
     }
+    _isClosed = true;
   }
 
   @override
   Future<StreamedResponse> send(BaseRequest request) async {
-    try {
-      _engine ??= await CronetEngine.build();
-    } catch (e) {
-      throw ClientException(e.toString(), request.url);
+    if (_isClosed) {
+      throw ClientException(
+          'HTTP request failed. Client is already closed.', request.url);
     }
+
+    if (_engine == null) {
+      // Create the future here rather than in the [fromCronetEngineFuture]
+      // factory so that [close] does not have to await the future just to
+      // close it in the case where [send] is never called.
+      //
+      // Assign to _engineFuture instead of just `await`ing the result of
+      // `CronetEngine.build()` to prevent concurrent executions of `send`
+      // from creating multiple [CronetEngine]s.
+      _engineFuture ??= CronetEngine.build();
+      try {
+        _engine = await _engineFuture;
+      } catch (e) {
+        throw ClientException(
+            'Exception building CronetEngine: ${e.toString()}', request.url);
+      }
+    }
+
     final stream = request.finalize();
 
     final body = await stream.toBytes();
@@ -203,7 +262,8 @@ class CronetClient extends BaseClient {
         });
 
     final result = await responseCompleter.future;
-    final responseHeaders = (result.headers.cast<String, List<Object?>>())
+    final responseHeaders = result.headers
+        .cast<String, List<Object?>>()
         .map((key, value) => MapEntry(key.toLowerCase(), value.join(',')));
 
     final contentLengthHeader = responseHeaders['content-length'];
