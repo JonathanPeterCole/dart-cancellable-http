@@ -4,7 +4,7 @@ homepage: https://github.com/JonathanPeterCole/dart-cancellation-token-http/tree
 description: A fork of Dart's HTTP package with request cancellation using cancellation_token.
 
 environment:
-  sdk: '>=2.19.0 <3.0.0'
+  sdk: '>=2.19.0 <4.0.0'
 
 platforms:
   android:
