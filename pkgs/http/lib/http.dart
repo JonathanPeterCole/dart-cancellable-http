@@ -17,7 +17,7 @@ import 'src/response.dart';
 import 'src/streamed_request.dart';
 
 export 'package:cancellation_token/cancellation_token.dart'
-    show CancellationToken, TimeoutCancellationToken, CancelledException;
+    show CancellationToken, CancelledException, TimeoutCancellationToken;
 
 export 'src/base_client.dart';
 export 'src/base_request.dart';
