@@ -145,7 +145,7 @@ final class RetryClient extends BaseClient {
         _unawaited(response.stream.listen((_) {}).cancel().catchError((_) {}));
       }
 
-      await Future<void>.delayed(_delay(i)).asCancellable(cancellationToken);
+      await CancellableFuture.delayed<void>(_delay(i), cancellationToken);
       if (_onRetry != null) {
         await CancellableFuture.from(
           () => _onRetry!.call(request, response, i),

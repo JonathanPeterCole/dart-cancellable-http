@@ -129,7 +129,9 @@ void main() {
         throwsA(allOf(
             isA<http.ClientException>().having((e) => e.uri, 'uri', url),
             isA<SocketException>().having(
-                (e) => e.toString(),
+                // Workaround for the osError on Windows using characters that
+                // caused the test to fail
+                (e) => e.toString().replaceAll('\x0D\x0A', ''),
                 'SocketException.toString',
                 matches('ClientException with SocketException.*,'
                     ' uri=http://http.invalid')))));
