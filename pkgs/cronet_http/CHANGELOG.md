@@ -1,6 +1,11 @@
-## 0.2.1-dev
+## 0.2.2
+
+* Require Dart 3.0
+
+## 0.2.1
 
 * Require Dart 2.19
+* Support `package:http` 1.0.0
 
 ## 0.2.0
 

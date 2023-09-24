@@ -8,6 +8,8 @@ import 'package:cancellation_token/cancellation_token.dart';
 
 import 'base_client.dart';
 import 'base_request.dart';
+import 'client.dart';
+import 'exception.dart';
 import 'io_sender.dart';
 import 'io_streamed_response.dart';
 
@@ -22,7 +24,28 @@ BaseClient createClient() {
   return IOClient();
 }
 
-/// A `dart:io`-based HTTP client.
+/// A `dart:io`-based HTTP [Client].
+///
+/// If there is a socket-level failure when communicating with the server
+/// (for example, if the server could not be reached), [IOClient] will emit a
+/// [ClientException] that also implements [SocketException]. This allows
+/// callers to get more detailed exception information for socket-level
+/// failures, if desired.
+///
+/// For example:
+/// ```dart
+/// final client = http.Client();
+/// late String data;
+/// try {
+///   data = await client.read(Uri.https('example.com', ''));
+/// } on SocketException catch (e) {
+///   // Exception is transport-related, check `e.osError` for more details.
+/// } on http.ClientException catch (e) {
+///   // Exception is HTTP-related (e.g. the server returned a 404 status code).
+///   // If the handler for `SocketException` were removed then all exceptions
+///   // would be caught by this handler.
+/// }
+/// ```
 class IOClient extends BaseClient {
   /// The underlying `dart:io` HTTP client.
   HttpClient? _inner;

@@ -1,3 +1,8 @@
+## 1.4.0
+**Based on version 1.1.0 of the [HTTP package](https://pub.dev/packages/http/versions/1.1.0).**
+
+* Merge v1.1.0 changes to the HTTP package
+
 ## 1.3.0
 **Based on version 0.13.6 of the [HTTP package](https://pub.dev/packages/http/versions/0.13.4).**
 

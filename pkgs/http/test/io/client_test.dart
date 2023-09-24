@@ -5,6 +5,7 @@
 @TestOn('vm')
 library;
 
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -49,9 +50,8 @@ void main() {
       ..headers[HttpHeaders.userAgentHeader] = 'Dart';
 
     var responseFuture = client.send(request);
-    request
-      ..sink.add('{"hello": "world"}'.codeUnits)
-      ..sink.close();
+    request.sink.add('{"hello": "world"}'.codeUnits);
+    unawaited(request.sink.close());
 
     var response = await responseFuture;
 
@@ -88,9 +88,8 @@ void main() {
       ..headers[HttpHeaders.userAgentHeader] = 'Dart';
 
     var responseFuture = client.send(request);
-    request
-      ..sink.add('{"hello": "world"}'.codeUnits)
-      ..sink.close();
+    request.sink.add('{"hello": "world"}'.codeUnits);
+    unawaited(request.sink.close());
 
     var response = await responseFuture;
 
@@ -125,7 +124,15 @@ void main() {
     request.headers[HttpHeaders.contentTypeHeader] =
         'application/json; charset=utf-8';
 
-    expect(client.send(request), throwsA(isA<SocketException>()));
+    expect(
+        client.send(request),
+        throwsA(allOf(
+            isA<http.ClientException>().having((e) => e.uri, 'uri', url),
+            isA<SocketException>().having(
+                (e) => e.toString(),
+                'SocketException.toString',
+                matches('ClientException with SocketException.*,'
+                    ' uri=http://http.invalid')))));
 
     request.sink.add('{"hello": "world"}'.codeUnits);
     request.sink.close();

@@ -1,3 +1,16 @@
+## 1.1.0
+
+* Add websocket support to `cupertino_api`.
+
+## 1.0.1
+
+* Remove experimental status from "Readme"
+
+## 1.0.0
+
+* Require Dart 3.0
+* Require Flutter 3.10.0
+
 ## 0.1.2
 
 * Require Dart 2.19

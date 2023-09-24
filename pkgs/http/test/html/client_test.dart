@@ -5,6 +5,8 @@
 @TestOn('browser')
 library;
 
+import 'dart:async';
+
 import 'package:cancellation_token/cancellation_token.dart';
 import 'package:cancellation_token_http/browser_client.dart';
 import 'package:cancellation_token_http/http.dart' as http;
@@ -18,9 +20,8 @@ void main() {
     var request = http.StreamedRequest('POST', echoUrl);
 
     var responseFuture = client.send(request);
-    request.sink
-      ..add('{"hello": "world"}'.codeUnits)
-      ..close();
+    request.sink.add('{"hello": "world"}'.codeUnits);
+    unawaited(request.sink.close());
 
     var response = await responseFuture;
     var bytesString = await response.stream.bytesToString();

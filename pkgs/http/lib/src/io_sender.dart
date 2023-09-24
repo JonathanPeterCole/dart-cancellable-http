@@ -16,9 +16,9 @@ import 'io_streamed_response.dart';
 class _ClientSocketException extends ClientException
     implements SocketException {
   final SocketException cause;
-  _ClientSocketException(SocketException e, Uri url)
+  _ClientSocketException(SocketException e, Uri uri)
       : cause = e,
-        super(e.message, url);
+        super(e.message, uri);
 
   @override
   InternetAddress? get address => cause.address;
@@ -28,6 +28,9 @@ class _ClientSocketException extends ClientException
 
   @override
   int? get port => cause.port;
+
+  @override
+  String toString() => 'ClientException with $cause, uri=$uri';
 }
 
 /// Handles sending reguests with cancellation for [IOClient].

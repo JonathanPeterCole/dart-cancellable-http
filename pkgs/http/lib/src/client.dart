@@ -27,11 +27,15 @@ import 'streamed_response.dart';
 /// [http.head], [http.get], [http.post], [http.put], [http.patch], or
 /// [http.delete] instead.
 ///
+/// All methods will emit a [ClientException] if there is a transport-level
+/// failure when communication with the server. For example, if the server could
+/// not be reached.
+///
 /// When creating an HTTP client class with additional functionality, you must
 /// extend [BaseClient] rather than [Client]. In most cases, you can wrap
 /// another instance of [Client] and add functionality on top of that. This
 /// allows all classes implementing [Client] to be mutually composable.
-abstract class Client {
+abstract interface class Client {
   /// Creates a new platform appropriate client.
   ///
   /// Creates an `IOClient` if `dart:io` is available and a `BrowserClient` if
