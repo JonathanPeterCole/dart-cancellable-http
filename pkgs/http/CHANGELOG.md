@@ -1,6 +1,7 @@
-## 1.4.0
+## 2.0.0
 **Based on version 1.1.0 of the [HTTP package](https://pub.dev/packages/http/versions/1.1.0).**
 
+* Requires Dart 3.0 or later
 * Merge v1.1.0 changes to the HTTP package
 
 ## 1.3.0

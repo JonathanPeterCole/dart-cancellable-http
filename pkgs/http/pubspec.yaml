@@ -1,5 +1,5 @@
 name: cancellation_token_http
-version: 1.4.0
+version: 2.0.0
 homepage: https://github.com/JonathanPeterCole/dart-cancellation-token-http/tree/main/pkgs/http
 description: A fork of Dart's HTTP package with request cancellation using cancellation_token.
 
