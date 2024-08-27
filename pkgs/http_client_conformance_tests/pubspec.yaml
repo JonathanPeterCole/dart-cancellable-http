@@ -2,11 +2,12 @@ name: http_client_conformance_tests
 description: >-
   A library that tests whether implementations of package:cancellation_token_https's `Client` class
   behave as expected.
-publish_to: none
 repository: https://github.com/dart-lang/http/tree/master/pkgs/http_client_conformance_tests
 
+publish_to: none
+
 environment:
-  sdk: '>=2.19.0 <3.0.0'
+  sdk: ^3.2.0
 
 dependencies:
   async: ^2.8.2
@@ -17,4 +18,4 @@ dependencies:
   test: ^1.21.2
 
 dev_dependencies:
-  dart_flutter_team_lints: ^1.0.0
+  dart_flutter_team_lints: ^2.0.0

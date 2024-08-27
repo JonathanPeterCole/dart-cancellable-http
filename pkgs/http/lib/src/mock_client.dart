@@ -2,6 +2,8 @@
 // for details. All rights reserved. Use of this source code is governed by a
 // BSD-style license that can be found in the LICENSE file.
 
+import 'dart:convert';
+
 import 'package:cancellation_token/cancellation_token.dart';
 
 import 'base_client.dart';
@@ -11,6 +13,11 @@ import 'request.dart';
 import 'response.dart';
 import 'streamed_request.dart';
 import 'streamed_response.dart';
+
+final _pngImageData = base64Decode(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDw'
+  'AEhQGAhKmMIQAAAABJRU5ErkJggg==',
+);
 
 // TODO(nweiz): once Dart has some sort of Rack- or WSGI-like standard for
 // server APIs, MockClient should conform to it.
@@ -73,6 +80,17 @@ class MockClient extends BaseClient {
   }) async {
     var bodyStream = request.finalize();
     return await _handler(request, bodyStream).asCancellable(cancellationToken);
+  }
+
+  /// Return a response containing a PNG image.
+  static Response pngResponse({BaseRequest? request}) {
+    final headers = {
+      'content-type': 'image/png',
+      'content-length': '${_pngImageData.length}'
+    };
+
+    return Response.bytes(_pngImageData, 200,
+        request: request, headers: headers, reasonPhrase: 'OK');
   }
 }
 

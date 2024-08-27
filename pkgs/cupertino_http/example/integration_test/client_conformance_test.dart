@@ -11,12 +11,19 @@ void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
   group('defaultSessionConfiguration', () {
-    testAll(CupertinoClient.defaultSessionConfiguration,
-        canStreamRequestBody: false);
+    testAll(
+      CupertinoClient.defaultSessionConfiguration,
+      canReceiveSetCookieHeaders: true,
+      canSendCookieHeaders: true,
+    );
   });
   group('fromSessionConfiguration', () {
     final config = URLSessionConfiguration.ephemeralSessionConfiguration();
-    testAll(() => CupertinoClient.fromSessionConfiguration(config),
-        canStreamRequestBody: false, canWorkInIsolates: false);
+    testAll(
+      () => CupertinoClient.fromSessionConfiguration(config),
+      canWorkInIsolates: false,
+      canReceiveSetCookieHeaders: true,
+      canSendCookieHeaders: true,
+    );
   });
 }

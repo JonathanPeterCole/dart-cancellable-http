@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:cancellation_token/cancellation_token.dart';
 
 import 'base_request.dart';
+import 'base_response.dart';
 import 'exception.dart';
 import 'io_client.dart';
 import 'io_streamed_response.dart';
@@ -33,6 +34,22 @@ class _ClientSocketException extends ClientException
   String toString() => 'ClientException with $cause, uri=$uri';
 }
 
+class _IOStreamedResponseV2 extends IOStreamedResponse
+    implements BaseResponseWithUrl {
+  @override
+  final Uri url;
+
+  _IOStreamedResponseV2(super.stream, super.statusCode,
+      {required this.url,
+      super.contentLength,
+      super.request,
+      super.headers,
+      super.isRedirect,
+      super.persistentConnection,
+      super.reasonPhrase,
+      super.inner});
+}
+
 /// Handles sending reguests with cancellation for [IOClient].
 class IOSender with Cancellable {
   IOSender(
@@ -44,8 +61,8 @@ class IOSender with Cancellable {
   }
 
   final Completer<IOStreamedResponse> completer;
-  HttpClientRequest? clientRequest;
-  HttpClientResponse? clientResponse;
+  HttpClientRequest? ioRequest;
+  HttpClientResponse? response;
   StreamController<List<int>>? responseStreamController;
 
   Future<IOStreamedResponse> get result => completer.future;
@@ -77,7 +94,7 @@ class IOSender with Cancellable {
     try {
       // Finalise the request and open the connection
       final requestStream = request.finalize();
-      clientRequest = (await httpClient.openUrl(request.method, request.url))
+      ioRequest = (await httpClient.openUrl(request.method, request.url))
         ..followRedirects = request.followRedirects
         ..maxRedirects = request.maxRedirects
         ..contentLength = (request.contentLength ?? -1)
@@ -85,35 +102,38 @@ class IOSender with Cancellable {
 
       // Cancel the request immediately if the token was cancelled
       if (cancellationToken?.isCancelled ?? false) {
-        await clientRequest!.close();
+        await ioRequest!.close();
         return;
       }
 
       // Add the request headers
       request.headers.forEach((name, value) {
-        clientRequest!.headers.set(name, value);
+        ioRequest!.headers.set(name, value);
       });
 
       // Send the request body
-      clientResponse =
-          await requestStream.pipe(clientRequest!) as HttpClientResponse;
-      clientRequest = null;
+      response = await requestStream.pipe(ioRequest!) as HttpClientResponse;
+      ioRequest = null;
 
       // Get the headers from the response
-      final responseHeaders = <String, String>{};
-      clientResponse!.headers.forEach((key, values) {
-        responseHeaders[key] = values.join(',');
+      final headers = <String, String>{};
+      response!.headers.forEach((key, values) {
+        // TODO: Remove trimRight() when
+        // https://github.com/dart-lang/sdk/issues/53005 is resolved and the
+        // package:http SDK constraint requires that version or later.
+        headers[key] = values.map((value) => value.trimRight()).join(',');
       });
 
-      // Prepare the response stream and pass the client response data into it
+      // Prepare a wrapper response stream to convert HttpExceptions to
+      // ClientExceptions and handle onDone
       responseStreamController = StreamController();
-      clientResponse!.listen(
+      response!.listen(
         (data) => responseStreamController?.add(data),
         onError: (Object error, StackTrace? stackTrace) {
-          responseStreamController?.addError(
-            _convertException(error, request),
-            stackTrace,
-          );
+          if (error is HttpException) {
+            error = ClientException(error.message, error.uri);
+          }
+          responseStreamController?.addError(error, stackTrace);
         },
         onDone: () {
           detach();
@@ -122,25 +142,27 @@ class IOSender with Cancellable {
         },
       );
 
-      // Return the response with the response stream
+      // Return the response with the wrapped stream
       completer.complete(
-        IOStreamedResponse(
+        _IOStreamedResponseV2(
           responseStreamController!.stream,
-          clientResponse!.statusCode,
-          contentLength: clientResponse!.contentLength == -1
-              ? null
-              : clientResponse!.contentLength,
+          response!.statusCode,
+          contentLength:
+              response!.contentLength == -1 ? null : response!.contentLength,
           request: request,
-          headers: responseHeaders,
-          isRedirect: clientResponse!.isRedirect,
-          persistentConnection: clientResponse!.persistentConnection,
-          reasonPhrase: clientResponse!.reasonPhrase,
-          inner: clientResponse,
+          headers: headers,
+          isRedirect: response!.isRedirect,
+          url: response!.redirects.isNotEmpty
+              ? response!.redirects.last.location
+              : request.url,
+          persistentConnection: response!.persistentConnection,
+          reasonPhrase: response!.reasonPhrase,
+          inner: response,
         ),
       );
-    } catch (e, stackTrace) {
+    } catch (error, stackTrace) {
       if (!completer.isCompleted) {
-        completer.completeError(_convertException(e, request), stackTrace);
+        completer.completeError(_convertException(error, request), stackTrace);
       }
       detach();
     }
@@ -159,19 +181,19 @@ class IOSender with Cancellable {
       ..close();
     responseStreamController = null;
     // Abort the HTTP request if cancelled whilst sending the request
-    clientRequest?.abort(cancelException, cancellationStackTrace);
+    ioRequest?.abort(cancelException, cancellationStackTrace);
     // Detatch and destroy the socket to close the connection if cancelled
     // whilst receiving the response body
-    clientResponse?.detachSocket().then((value) => value.destroy());
+    response?.detachSocket().then((value) => value.destroy());
   }
 
-  Object _convertException(Object e, BaseRequest request) {
-    if (e is SocketException) {
-      return _ClientSocketException(e, request.url);
-    } else if (e is HttpException) {
-      return ClientException(e.message, e.uri);
+  Object _convertException(Object error, BaseRequest request) {
+    if (error is SocketException) {
+      return _ClientSocketException(error, request.url);
+    } else if (error is HttpException) {
+      return ClientException(error.message, error.uri);
     } else {
-      return e;
+      return error;
     }
   }
 }

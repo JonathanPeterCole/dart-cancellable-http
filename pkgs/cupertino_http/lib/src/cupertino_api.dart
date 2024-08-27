@@ -32,6 +32,7 @@ import 'dart:isolate';
 import 'dart:math';
 import 'dart:typed_data';
 
+import 'package:async/async.dart';
 import 'package:ffi/ffi.dart';
 
 import 'native_cupertino_bindings.dart' as ncb;
@@ -120,11 +121,73 @@ enum URLSessionWebSocketMessageType {
   urlSessionWebSocketMessageTypeString,
 }
 
+ncb.NSInputStream _streamToNSInputStream(Stream<List<int>> stream) {
+  const maxReadAheadSize = 4096;
+  final queue = StreamQueue(stream);
+  final port = ReceivePort();
+  final inputStream = ncb.CUPHTTPStreamToNSInputStreamAdapter.alloc(helperLibs)
+      .initWithPort_(port.sendPort.nativePort);
+
+  late StreamSubscription<dynamic> s;
+  // Messages from `CUPHTTPStreamToNSInputStreamAdapter` indicate that the task
+  // is attempting to read more data but there is none available.
+  s = port.listen((_) async {
+    if (inputStream.streamStatus == ncb.NSStreamStatus.NSStreamStatusClosed) {
+      return;
+    }
+
+    // Prevent multiple executions of this code to be in flight at once.
+    s.pause();
+    while (await queue.hasNext &&
+        inputStream.streamStatus != ncb.NSStreamStatus.NSStreamStatusClosed) {
+      late final List<int> next;
+      try {
+        next = await queue.next;
+      } catch (e) {
+        inputStream.setError_(Error.fromCustomDomain('DartError', 0,
+                localizedDescription: e.toString())
+            ._nsObject);
+        break;
+      }
+      // In practice the read length request will be large (>1MB) so,
+      // instead of adding that much data, try to keep the buffer
+      // at least `maxReadAheadSize`.
+      if (inputStream.addData_(Data.fromList(next)._nsObject) >
+          maxReadAheadSize) {
+        break;
+      }
+    }
+    if (!await queue.hasNext) {
+      inputStream.setDone();
+    } else {
+      s.resume();
+    }
+  });
+  return inputStream;
+}
+
 /// Information about a failure.
 ///
 /// See [NSError](https://developer.apple.com/documentation/foundation/nserror)
 class Error extends _ObjectHolder<ncb.NSError> implements Exception {
   Error._(super.c);
+
+  /// Create an Error from a custom domain.
+  factory Error.fromCustomDomain(String domain, int code,
+      {String? localizedDescription}) {
+    final d = ncb.NSMutableDictionary.alloc(linkedLibs).init();
+
+    if (localizedDescription != null) {
+      d.setObject_forKey_(
+        localizedDescription.toNSString(linkedLibs),
+        ncb.NSString.castFromPointer(
+            linkedLibs, linkedLibs.NSLocalizedDescriptionKey),
+      );
+    }
+    final e = ncb.NSError.alloc(linkedLibs).initWithDomain_code_userInfo_(
+        domain.toNSString(linkedLibs).pointer, code, d);
+    return Error._(e);
+  }
 
   /// The numeric code for the error e.g. -1003 (kCFURLErrorCannotFindHost).
   ///
@@ -135,8 +198,11 @@ class Error extends _ObjectHolder<ncb.NSError> implements Exception {
   /// See [NSError.code](https://developer.apple.com/documentation/foundation/nserror/1409165-code)
   int get code => _nsObject.code;
 
-  // TODO(https://github.com/dart-lang/ffigen/issues/386): expose
-  // `NSError.domain` when correct type aliases are available.
+  /// The error domain, for example `"NSPOSIXErrorDomain"`.
+  ///
+  /// See [NSError.domain](https://developer.apple.com/documentation/foundation/nserror/1413924-domain)
+  String get domain =>
+      ncb.NSString.castFromPointer(linkedLibs, _nsObject.domain).toString();
 
   /// A description of the error in the current locale e.g.
   /// 'A server with the specified hostname could not be found.'
@@ -159,11 +225,41 @@ class Error extends _ObjectHolder<ncb.NSError> implements Exception {
 
   @override
   String toString() => '[Error '
+      'domain=$domain '
       'code=$code '
       'localizedDescription=$localizedDescription '
       'localizedFailureReason=$localizedFailureReason '
       'localizedRecoverySuggestion=$localizedRecoverySuggestion '
       ']';
+}
+
+/// A cache for [URLRequest]s. Used by [URLSessionConfiguration.cache].
+///
+/// See [NSURLCache](https://developer.apple.com/documentation/foundation/nsurlcache)
+class URLCache extends _ObjectHolder<ncb.NSURLCache> {
+  URLCache._(super.c);
+
+  /// The default URLCache.
+  ///
+  /// See [NSURLCache.sharedURLCache](https://developer.apple.com/documentation/foundation/nsurlcache/1413377-sharedurlcache)
+  static URLCache? get sharedURLCache {
+    final sharedCache = ncb.NSURLCache.getSharedURLCache(linkedLibs);
+    return sharedCache == null ? null : URLCache._(sharedCache);
+  }
+
+  /// Create a new [URLCache] with the given memory and disk cache sizes.
+  ///
+  /// [memoryCapacity] and [diskCapacity] are specified in bytes.
+  ///
+  /// [directory] is the file system location where the disk cache will be
+  /// stored. If `null` then the default directory will be used.
+  ///
+  /// See [NSURLCache initWithMemoryCapacity:diskCapacity:directoryURL:](https://developer.apple.com/documentation/foundation/nsurlcache/3240612-initwithmemorycapacity)
+  factory URLCache.withCapacity(
+          {int memoryCapacity = 0, int diskCapacity = 0, Uri? directory}) =>
+      URLCache._(ncb.NSURLCache.alloc(linkedLibs)
+          .initWithMemoryCapacity_diskCapacity_directoryURL_(memoryCapacity,
+              diskCapacity, directory == null ? null : uriToNSURL(directory)));
 }
 
 /// Controls the behavior of a URLSession.
@@ -233,11 +329,46 @@ class URLSessionConfiguration
   set allowsExpensiveNetworkAccess(bool value) =>
       _nsObject.allowsExpensiveNetworkAccess = value;
 
+  /// The [URLCache] used to cache the results of [URLSessionTask]s.
+  ///
+  /// A value of `nil` indicates that no cache will be used.
+  ///
+  /// See [NSURLSessionConfiguration.URLCache](https://developer.apple.com/documentation/foundation/nsurlsessionconfiguration/1410148-urlcache)
+  URLCache? get cache =>
+      _nsObject.URLCache == null ? null : URLCache._(_nsObject.URLCache!);
+  set cache(URLCache? cache) => _nsObject.URLCache = cache?._nsObject;
+
   /// Whether background tasks can be delayed by the system.
   ///
   /// See [NSURLSessionConfiguration.discretionary](https://developer.apple.com/documentation/foundation/nsurlsessionconfiguration/1411552-discretionary)
   bool get discretionary => _nsObject.discretionary;
   set discretionary(bool value) => _nsObject.discretionary = value;
+
+  /// Additional headers to send with each request.
+  ///
+  /// Note that the getter for this field returns a **copy** of the headers.
+  ///
+  /// See [NSURLSessionConfiguration.HTTPAdditionalHeaders](https://developer.apple.com/documentation/foundation/nsurlsessionconfiguration/1411532-httpadditionalheaders)
+  Map<String, String>? get httpAdditionalHeaders {
+    if (_nsObject.HTTPAdditionalHeaders case var additionalHeaders?) {
+      final headers = ncb.NSDictionary.castFrom(additionalHeaders);
+      return stringNSDictionaryToMap(headers);
+    }
+    return null;
+  }
+
+  set httpAdditionalHeaders(Map<String, String>? headers) {
+    if (headers == null) {
+      _nsObject.HTTPAdditionalHeaders = null;
+      return;
+    }
+    final d = ncb.NSMutableDictionary.alloc(linkedLibs).init();
+    headers.forEach((key, value) {
+      d.setObject_forKey_(
+          value.toNSString(linkedLibs), key.toNSString(linkedLibs));
+    });
+    _nsObject.HTTPAdditionalHeaders = d;
+  }
 
   /// What policy to use when deciding whether to accept cookies.
   ///
@@ -247,10 +378,10 @@ class URLSessionConfiguration
   set httpCookieAcceptPolicy(HTTPCookieAcceptPolicy value) =>
       _nsObject.HTTPCookieAcceptPolicy = value.index;
 
-  // The maximum number of connections that a URLSession can have open to the
-  // same host.
+  /// The maximum number of connections that a URLSession can have open to the
+  /// same host.
   //
-  // See [NSURLSessionConfiguration.HTTPMaximumConnectionsPerHost](https://developer.apple.com/documentation/foundation/nsurlsessionconfiguration/1407597-httpmaximumconnectionsperhost).
+  /// See [NSURLSessionConfiguration.HTTPMaximumConnectionsPerHost](https://developer.apple.com/documentation/foundation/nsurlsessionconfiguration/1407597-httpmaximumconnectionsperhost).
   int get httpMaximumConnectionsPerHost =>
       _nsObject.HTTPMaximumConnectionsPerHost;
   set httpMaximumConnectionsPerHost(int value) =>
@@ -287,9 +418,9 @@ class URLSessionConfiguration
   set networkServiceType(URLRequestNetworkService value) =>
       _nsObject.networkServiceType = value.index;
 
-  // Controls how to deal with response caching.
-  //
-  // See [NSURLSessionConfiguration.requestCachePolicy](https://developer.apple.com/documentation/foundation/nsurlsessionconfiguration/1411655-requestcachepolicy)
+  /// Controls how to deal with response caching.
+  ///
+  /// See [NSURLSessionConfiguration.requestCachePolicy](https://developer.apple.com/documentation/foundation/nsurlsessionconfiguration/1411655-requestcachepolicy)
   URLRequestCachePolicy get requestCachePolicy =>
       URLRequestCachePolicy.values[_nsObject.requestCachePolicy];
   set requestCachePolicy(URLRequestCachePolicy value) =>
@@ -336,6 +467,7 @@ class URLSessionConfiguration
       'allowsConstrainedNetworkAccess=$allowsConstrainedNetworkAccess '
       'allowsExpensiveNetworkAccess=$allowsExpensiveNetworkAccess '
       'discretionary=$discretionary '
+      'httpAdditionalHeaders=$httpAdditionalHeaders '
       'httpCookieAcceptPolicy=$httpCookieAcceptPolicy '
       'httpShouldSetCookies=$httpShouldSetCookies '
       'httpMaximumConnectionsPerHost=$httpMaximumConnectionsPerHost '
@@ -355,14 +487,14 @@ class URLSessionConfiguration
 class Data extends _ObjectHolder<ncb.NSData> {
   Data._(super.c);
 
-  // A new [Data] from an existing one.
-  //
-  // See [NSData dataWithData:](https://developer.apple.com/documentation/foundation/nsdata/1547230-datawithdata)
+  /// A new [Data] from an existing one.
+  ///
+  /// See [NSData dataWithData:](https://developer.apple.com/documentation/foundation/nsdata/1547230-datawithdata)
   factory Data.fromData(Data d) =>
       Data._(ncb.NSData.dataWithData_(linkedLibs, d._nsObject));
 
   /// A new [Data] object containing the given bytes.
-  factory Data.fromUint8List(Uint8List l) {
+  factory Data.fromList(List<int> l) {
     final buffer = calloc<Uint8>(l.length);
     try {
       buffer.asTypedList(l.length).setAll(0, l);
@@ -374,6 +506,10 @@ class Data extends _ObjectHolder<ncb.NSData> {
       calloc.free(buffer);
     }
   }
+
+  /// A new [Data] object containing the given bytes.
+  @Deprecated('Use Data.fromList instead')
+  factory Data.fromUint8List(Uint8List l) = Data.fromList;
 
   /// The number of bytes contained in the object.
   ///
@@ -421,7 +557,7 @@ class MutableData extends Data {
   /// Appends the given data.
   ///
   /// See [NSMutableData appendBytes:length:](https://developer.apple.com/documentation/foundation/nsmutabledata/1407704-appendbytes)
-  void appendBytes(Uint8List l) {
+  void appendBytes(List<int> l) {
     final f = calloc<Uint8>(l.length);
     try {
       f.asTypedList(l.length).setAll(0, l);
@@ -492,7 +628,7 @@ class HTTPURLResponse extends URLResponse {
   Map<String, String> get allHeaderFields {
     final headers =
         ncb.NSDictionary.castFrom(_httpUrlResponse.allHeaderFields!);
-    return stringDictToMap(headers);
+    return stringNSDictionaryToMap(headers);
   }
 
   @override
@@ -814,7 +950,7 @@ class URLSessionWebSocketTask extends URLSessionTask {
       if (error != null) {
         completer.completeError(error);
       } else {
-        completer.complete(message);
+        completer.complete(message!);
       }
       completionPort.close();
     });
@@ -845,11 +981,8 @@ class URLRequest extends _ObjectHolder<ncb.NSURLRequest> {
   /// Creates a request for a URL.
   ///
   /// See [NSURLRequest.requestWithURL:](https://developer.apple.com/documentation/foundation/nsurlrequest/1528603-requestwithurl)
-  factory URLRequest.fromUrl(Uri uri) {
-    final url = ncb.NSURL
-        .URLWithString_(linkedLibs, uri.toString().toNSString(linkedLibs));
-    return URLRequest._(ncb.NSURLRequest.requestWithURL_(linkedLibs, url));
-  }
+  factory URLRequest.fromUrl(Uri uri) => URLRequest._(
+      ncb.NSURLRequest.requestWithURL_(linkedLibs, uriToNSURL(uri)));
 
   /// Returns all of the HTTP headers for the request.
   ///
@@ -859,13 +992,13 @@ class URLRequest extends _ObjectHolder<ncb.NSURLRequest> {
       return null;
     } else {
       final headers = ncb.NSDictionary.castFrom(_nsObject.allHTTPHeaderFields!);
-      return stringDictToMap(headers);
+      return stringNSDictionaryToMap(headers);
     }
   }
 
-  // Controls how to deal with caching for the request.
-  //
-  // See [NSURLSession.cachePolicy](https://developer.apple.com/documentation/foundation/nsurlrequest/1407944-cachepolicy)
+  /// Controls how to deal with caching for the request.
+  ///
+  /// See [NSURLSession.cachePolicy](https://developer.apple.com/documentation/foundation/nsurlrequest/1407944-cachepolicy)
   URLRequestCachePolicy get cachePolicy =>
       URLRequestCachePolicy.values[_nsObject.cachePolicy];
 
@@ -943,6 +1076,13 @@ class MutableURLRequest extends URLRequest {
 
   set httpBody(Data? data) {
     _mutableUrlRequest.HTTPBody = data?._nsObject;
+  }
+
+  /// Sets the body of the request to the given [Stream].
+  ///
+  /// See [NSMutableURLRequest.HTTPBodyStream](https://developer.apple.com/documentation/foundation/nsurlrequest/1407341-httpbodystream).
+  set httpBodyStream(Stream<List<int>> stream) {
+    _mutableUrlRequest.HTTPBodyStream = _streamToNSInputStream(stream);
   }
 
   set httpMethod(String method) {
@@ -1434,6 +1574,37 @@ class URLSession extends _ObjectHolder<ncb.NSURLSession> {
     }
     final task = URLSessionWebSocketTask._(
         _nsObject.webSocketTaskWithRequest_(request._nsObject));
+    _setupDelegation(_delegate, this, task,
+        onComplete: _onComplete,
+        onData: _onData,
+        onFinishedDownloading: _onFinishedDownloading,
+        onRedirect: _onRedirect,
+        onResponse: _onResponse,
+        onWebSocketTaskOpened: _onWebSocketTaskOpened,
+        onWebSocketTaskClosed: _onWebSocketTaskClosed);
+    return task;
+  }
+
+  /// Creates a [URLSessionWebSocketTask] that represents a connection to a
+  /// WebSocket endpoint.
+  ///
+  /// See [NSURLSession webSocketTaskWithURL:protocols:](https://developer.apple.com/documentation/foundation/nsurlsession/3181172-websockettaskwithurl)
+  URLSessionWebSocketTask webSocketTaskWithURL(Uri uri,
+      {Iterable<String>? protocols}) {
+    if (_isBackground) {
+      throw UnsupportedError(
+          'WebSocket tasks are not supported in background sessions');
+    }
+
+    final URLSessionWebSocketTask task;
+    if (protocols == null) {
+      task = URLSessionWebSocketTask._(
+          _nsObject.webSocketTaskWithURL_(uriToNSURL(uri)));
+    } else {
+      task = URLSessionWebSocketTask._(
+          _nsObject.webSocketTaskWithURL_protocols_(
+              uriToNSURL(uri), stringIterableToNSArray(protocols)));
+    }
     _setupDelegation(_delegate, this, task,
         onComplete: _onComplete,
         onData: _onData,

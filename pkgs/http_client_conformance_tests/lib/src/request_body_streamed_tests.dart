@@ -11,7 +11,7 @@ import 'package:stream_channel/stream_channel.dart';
 import 'package:test/test.dart';
 
 import 'request_body_streamed_server_vm.dart'
-    if (dart.library.html) 'request_body_streamed_server_web.dart';
+    if (dart.library.js_interop) 'request_body_streamed_server_web.dart';
 
 /// Tests that the [Client] correctly implements streamed request body
 /// uploading.
@@ -29,7 +29,7 @@ void testRequestBodyStreamed(Client client,
     setUp(() async {
       httpServerChannel = await startServer();
       httpServerQueue = StreamQueue(httpServerChannel.stream);
-      host = 'localhost:${await httpServerQueue.next}';
+      host = 'localhost:${await httpServerQueue.nextAsInt}';
     });
     tearDown(() => httpServerChannel.sink.add(null));
 
@@ -54,9 +54,8 @@ void testRequestBodyStreamed(Client client,
       }
 
       final request = StreamedRequest('POST', Uri.http(host, ''));
-      const Utf8Encoder()
-          .bind(count())
-          .listen(request.sink.add, onDone: request.sink.close);
+      const Utf8Encoder().bind(count()).listen(request.sink.add,
+          onError: request.sink.addError, onDone: request.sink.close);
       await client.send(request);
 
       expect(lastReceived, greaterThanOrEqualTo(1000));

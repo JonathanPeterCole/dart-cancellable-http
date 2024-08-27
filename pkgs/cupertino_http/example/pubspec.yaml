@@ -6,20 +6,24 @@ publish_to: 'none'
 version: 1.0.0+1
 
 environment:
-  sdk: ^3.0.0
-  flutter: '>=3.10.0'
+  sdk: ^3.2.0
+  flutter: '>=3.16.0'
 
 dependencies:
-  cached_network_image: ^3.2.3
   cupertino_http:
     path: ../
   cupertino_icons: ^1.0.2
   flutter:
     sdk: flutter
-  http: ^0.13.5
+  http: ^1.0.0
+  http_image_provider: ^0.0.2
+  provider: ^6.1.1
 
 dev_dependencies:
-  dart_flutter_team_lints: ^1.0.0
+  convert: ^3.1.1
+  crypto: ^3.0.3
+  dart_flutter_team_lints: ^2.0.0
+  ffi: ^2.0.1
   flutter_test:
     sdk: flutter
   http_client_conformance_tests:
@@ -27,6 +31,8 @@ dev_dependencies:
   integration_test:
     sdk: flutter
   test: ^1.21.1
+  web_socket_conformance_tests:
+    path: ../../web_socket_conformance_tests/
 
 flutter:
   uses-material-design: true

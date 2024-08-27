@@ -21,7 +21,8 @@ export 'package:cancellation_token/cancellation_token.dart'
 
 export 'src/base_client.dart';
 export 'src/base_request.dart';
-export 'src/base_response.dart';
+export 'src/base_response.dart'
+    show BaseResponse, BaseResponseWithUrl, HeadersWithSplitValues;
 export 'src/byte_stream.dart';
 export 'src/client.dart' hide zoneClient;
 export 'src/exception.dart';
@@ -30,7 +31,7 @@ export 'src/multipart_request.dart';
 export 'src/request.dart';
 export 'src/response.dart';
 export 'src/streamed_request.dart';
-export 'src/streamed_response.dart';
+export 'src/streamed_response.dart' show StreamedResponse;
 
 /// Sends an HTTP HEAD request with the given headers to the given URL.
 ///

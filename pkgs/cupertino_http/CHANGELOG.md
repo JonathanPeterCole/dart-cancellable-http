@@ -1,6 +1,30 @@
+## 1.4.0
+
+* **Experimental** support for the `package:web_socket` `WebSocket` interface.
+
+## 1.3.0
+
+* Use `package:http_image_provider` in the example application.
+* Support `BaseResponseWithUrl`.
+
+## 1.2.0
+
+* Add support for setting additional http headers in
+  `URLSessionConfiguration`.
+
 ## 1.1.0
 
 * Add websocket support to `cupertino_api`.
+* Add streaming upload support, i.e., if `CupertinoClient.send()` is called
+  with a `StreamedRequest` then the data will be sent to the server
+  incrementally.
+* Deprecate `Data.fromUint8List` in favor of `Data.fromList`, which accepts
+  any `List<int>`.
+* Disable additional analyses for generated Objective-C bindings to prevent
+  errors from `dart analyze`.
+* Throw `ClientException` when the `'Content-Length'` header is invalid.
+* Add support for configurable caching through
+  `URLSessionConfiguration.cache`.
 
 ## 1.0.1
 
