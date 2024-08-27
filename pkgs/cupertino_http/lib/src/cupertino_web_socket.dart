@@ -25,6 +25,28 @@ class ConnectionException extends WebSocketException {
 ///
 /// NOTE: the [WebSocket] interface is currently experimental and may change in
 /// the future.
+///
+/// ```dart
+/// import 'package:cupertino_http/cupertino_http.dart';
+/// import 'package:web_socket/web_socket.dart';
+///
+/// void main() async {
+///   final socket = await CupertinoWebSocket.connect(
+///       Uri.parse('wss://ws.postman-echo.com/raw'));
+///
+///   socket.events.listen((e) async {
+///     switch (e) {
+///       case TextDataReceived(text: final text):
+///         print('Received Text: $text');
+///         await socket.close();
+///       case BinaryDataReceived(data: final data):
+///         print('Received Binary: $data');
+///       case CloseReceived(code: final code, reason: final reason):
+///         print('Connection to server closed: $code [$reason]');
+///     }
+///   });
+/// }
+/// ```
 class CupertinoWebSocket implements WebSocket {
   /// Create a new WebSocket connection using the
   /// [NSURLSessionWebSocketTask API](https://developer.apple.com/documentation/foundation/nsurlsessionwebsockettask).
@@ -84,7 +106,7 @@ class CupertinoWebSocket implements WebSocket {
         //    called and `_connectionClosed` is a no-op.
         // 2. we sent a close Frame (through `close()`) and `_connectionClosed`
         //    is a no-op.
-        // 3. an error occured (e.g. network failure) and `_connectionClosed`
+        // 3. an error occurred (e.g. network failure) and `_connectionClosed`
         //    will signal that and close `event`.
         webSocket._connectionClosed(
             1006, Data.fromList('abnormal close'.codeUnits));
@@ -106,6 +128,8 @@ class CupertinoWebSocket implements WebSocket {
   /// Handle an incoming message from the peer and schedule receiving the next
   /// message.
   void _handleMessage(URLSessionWebSocketMessage value) {
+    if (_events.isClosed) return;
+
     late WebSocketEvent event;
     switch (value.type) {
       case URLSessionWebSocketMessageType.urlSessionWebSocketMessageTypeString:
@@ -160,31 +184,32 @@ class CupertinoWebSocket implements WebSocket {
   @override
   void sendBytes(Uint8List b) {
     if (_events.isClosed) {
-      throw StateError('WebSocket is closed');
+      throw WebSocketConnectionClosed();
     }
     _task
         .sendMessage(URLSessionWebSocketMessage.fromData(Data.fromList(b)))
-        .then((_) => _, onError: _closeConnectionWithError);
+        .then((value) => value, onError: _closeConnectionWithError);
   }
 
   @override
   void sendText(String s) {
     if (_events.isClosed) {
-      throw StateError('WebSocket is closed');
+      throw WebSocketConnectionClosed();
     }
     _task
         .sendMessage(URLSessionWebSocketMessage.fromString(s))
-        .then((_) => _, onError: _closeConnectionWithError);
+        .then((value) => value, onError: _closeConnectionWithError);
   }
 
   @override
   Future<void> close([int? code, String? reason]) async {
     if (_events.isClosed) {
-      throw StateError('WebSocket is closed');
+      throw WebSocketConnectionClosed();
     }
 
-    if (code != null) {
-      RangeError.checkValueInInterval(code, 3000, 4999, 'code');
+    if (code != null && code != 1000 && !(code >= 3000 && code <= 4999)) {
+      throw ArgumentError('Invalid argument: $code, close code must be 1000 or '
+          'in the range 3000-4999');
     }
     if (reason != null && utf8.encode(reason).length > 123) {
       throw ArgumentError.value(reason, 'reason',

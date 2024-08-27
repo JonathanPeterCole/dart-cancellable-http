@@ -2,7 +2,7 @@
 
 A fork of Dart's [HTTP package](https://pub.dev/packages/http) with request cancellation using [cancellation_token](https://pub.dev/packages/cancellation_token).
 
-**Currently based on version 1.2.1 of the [HTTP package](https://pub.dev/packages/http/versions/1.2.1).**
+**Currently based on version 1.2.2 of the [HTTP package](https://pub.dev/packages/http/versions/1.2.2).**
 
 ## Features
 

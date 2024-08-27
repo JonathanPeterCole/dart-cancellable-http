@@ -6,7 +6,7 @@ import 'dart:async';
 import 'dart:js_interop';
 
 import 'package:cancellation_token/cancellation_token.dart';
-import 'package:web/web.dart';
+import 'package:web/web.dart' show XHRGetters, XMLHttpRequest;
 
 import 'base_client.dart';
 import 'base_request.dart';
