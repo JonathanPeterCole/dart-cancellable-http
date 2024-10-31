@@ -1,5 +1,8 @@
 Copyright 2014, the Dart project authors. 
 
+Forked from the Dart http package and modified by Jonathan Cole to add 
+support for cancellation.
+
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
 met:
