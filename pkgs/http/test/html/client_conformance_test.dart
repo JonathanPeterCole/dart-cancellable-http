@@ -6,7 +6,7 @@
 library;
 
 import 'package:cancellation_token_http/browser_client.dart';
-import 'package:http_client_conformance_tests/http_client_conformance_tests.dart';
+import 'package:cancellation_token_http_client_conformance_tests/http_client_conformance_tests.dart';
 import 'package:test/test.dart';
 
 void main() {

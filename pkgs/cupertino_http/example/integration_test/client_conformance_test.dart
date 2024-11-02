@@ -4,7 +4,7 @@
 
 import 'package:cupertino_http/cupertino_http.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:http_client_conformance_tests/http_client_conformance_tests.dart';
+import 'package:cancellation_token_http_client_conformance_tests/http_client_conformance_tests.dart';
 import 'package:http_profile/http_profile.dart';
 import 'package:integration_test/integration_test.dart';
 

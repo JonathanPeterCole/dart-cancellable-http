@@ -1,8 +1,8 @@
-name: http_client_conformance_tests
+name: cancellation_token_http_client_conformance_tests
 description: >-
-  A library that tests whether implementations of package:cancellation_token_https's `Client` class
+  A library that tests whether implementations of package:cancellation_token_http's `Client` class
   behave as expected.
-repository: https://github.com/dart-lang/http/tree/master/pkgs/http_client_conformance_tests
+repository: https://github.com/JonathanPeterCole/dart-cancellation-token-http/tree/main/pkgs/http_client_conformance_tests
 
 publish_to: none
 

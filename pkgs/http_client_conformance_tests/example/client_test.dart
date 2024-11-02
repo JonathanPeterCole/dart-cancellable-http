@@ -1,5 +1,5 @@
 import 'package:cancellation_token_http/http.dart';
-import 'package:http_client_conformance_tests/http_client_conformance_tests.dart';
+import 'package:cancellation_token_http_client_conformance_tests/http_client_conformance_tests.dart';
 import 'package:test/test.dart';
 
 class MyHttpClient extends BaseClient {

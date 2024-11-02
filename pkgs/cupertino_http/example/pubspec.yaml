@@ -26,7 +26,7 @@ dev_dependencies:
   ffi: ^2.0.1
   flutter_test:
     sdk: flutter
-  http_client_conformance_tests:
+  cancellation_token_http_client_conformance_tests:
     path: ../../http_client_conformance_tests/
   http_profile: ^0.1.0
   integration_test:
